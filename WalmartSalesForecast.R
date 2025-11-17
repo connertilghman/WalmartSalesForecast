@@ -1,86 +1,74 @@
 library(tidyverse)
 library(lubridate)
 library(ggplot2)
+library(dplyr)
 
-#--------------------------------------------------
-# 1. Read the data
-#--------------------------------------------------
 
 features <- read.csv("features.csv")
 df <- read.csv("train.csv")
+test <- read.csv("test.csv")
 
-df$Date <- ymd(df$Date)
+features[is.na(features)] <- 0
 
-glimpse(df)
+features$Total <- features$MarkDown1 + features$MarkDown2 + features$MarkDown3 +
+  features$MarkDown4 + features$MarkDown5
 
-#--------------------------------------------------
-# 2. Basic summaries
-#--------------------------------------------------
+features$flag <- ifelse(features$Total == 0, 0, 1)
 
-summary(df)
+features <- features |>
+  select(-MarkDown1, -MarkDown2, -MarkDown3, -MarkDown4, -MarkDown5)
 
-# Number of stores and departments
-df %>% summarise(
-  n_stores = n_distinct(Store),
-  n_depts = n_distinct(Dept)
-)
+fulldata <- left_join(df,features, by=c("Store", "Date"))
+fulltest <- left_join(test,features, by=c("Store", "Date"))
 
-#--------------------------------------------------
-# 3. Issue 1: Seasonality & Holiday Effects
-#--------------------------------------------------
-
-# Plot weekly sales for Store 1 Dept 1
-store1_dept1 <- df %>%
-  filter(Store == 1, Dept == 1) %>%
-  arrange(Date)
-
-ggplot(store1_dept1, aes(Date, Weekly_Sales)) +
-  geom_line() +
-  labs(title = "Store 1 Dept 1 Weekly Sales Over Time",
-       x = "Date", y = "Weekly Sales")
-
-# Compare holiday vs non-holiday sales
-df %>%
-  group_by(IsHoliday) %>%
-  summarise(
-    mean_sales = mean(Weekly_Sales),
-    median_sales = median(Weekly_Sales),
-    n = n()
-  )
-
-#--------------------------------------------------
-# 4. Issue 2: Large Differences Across Stores/Departments
-#--------------------------------------------------
-
-# Boxplot of sales by store
-ggplot(df, aes(factor(Store), Weekly_Sales)) +
-  geom_boxplot() +
-  labs(title = "Sales Variability Across Stores", x = "Store", y = "Weekly Sales") +
-  theme(axis.text.x = element_text(angle = 90))
-
-# Example: Compare two stores’ time series
-different_sales <- ggplot(df %>% filter(Dept == 1, Store %in% c(1, 5)),
-       aes(Date, Weekly_Sales, color = factor(Store))) +
-  geom_line() +
-  labs(title = "Different Sales Patterns Between Stores",
-       color = "Store")
-
-#--------------------------------------------------
-# 5. Issue 3: Outliers & Unusual Values
-#--------------------------------------------------
-
-# Check for negative or zero sales
-df %>% filter(Weekly_Sales <= 0)
-
-# Histogram of weekly sales
-ggplot(df, aes(Weekly_Sales)) +
-  geom_histogram(bins = 50) +
-  labs(title = "Distribution of Weekly Sales")
-
-#--------------------------------------------------
-# 6. Missing values
-#--------------------------------------------------
-
-df %>% summarise_all(~sum(is.na(.)))
-
-ggsave("salescomparison.png", plot = different_sales, width = 8, height = 5, dpi = 300)
+# df$Date <- ymd(df$Date)
+# 
+# glimpse(df)
+# 
+# 
+# summary(df)
+# 
+# # Number of stores and departments
+# df %>% summarise(
+#   n_stores = n_distinct(Store),
+#   n_depts = n_distinct(Dept)
+# )
+# 
+# # Plot weekly sales for Store 1 Dept 1
+# store1_dept1 <- df %>%
+#   filter(Store == 1, Dept == 1) %>%
+#   arrange(Date)
+# 
+# ggplot(store1_dept1, aes(Date, Weekly_Sales)) +
+#   geom_line() +
+#   labs(title = "Store 1 Dept 1 Weekly Sales Over Time",
+#        x = "Date", y = "Weekly Sales")
+# 
+# # Compare holiday vs non-holiday sales
+# df %>%
+#   group_by(IsHoliday) %>%
+#   summarise(
+#     mean_sales = mean(Weekly_Sales),
+#     median_sales = median(Weekly_Sales),
+#     n = n()
+#   )
+# 
+# # Example: Compare two stores’ time series
+# different_sales <- ggplot(df %>% filter(Dept == 1, Store %in% c(1, 5)),
+#        aes(Date, Weekly_Sales, color = factor(Store))) +
+#   geom_line() +
+#   labs(title = "Different Sales Patterns Between Stores",
+#        color = "Store")
+# 
+# 
+# # Check for negative or zero sales
+# df %>% filter(Weekly_Sales <= 0)
+# 
+# # Histogram of weekly sales
+# ggplot(df, aes(Weekly_Sales)) +
+#   geom_histogram(bins = 50) +
+#   labs(title = "Distribution of Weekly Sales")
+# 
+# df %>% summarise_all(~sum(is.na(.)))
+# 
+# ggsave("salescomparison.png", plot = different_sales, width = 8, height = 5, dpi = 300)
